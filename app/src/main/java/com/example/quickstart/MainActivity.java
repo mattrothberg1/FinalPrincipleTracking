@@ -523,17 +523,19 @@ public class MainActivity extends Activity
             String range = "Raw!A:D";
             if(shouldPush == false){
                 realm.beginTransaction();
-                Entry entry = realm.createObject(Entry.class, time);
+                Entry entry = realm.createObject(Entry.class);
                 entry.setName(beaconName);
                 entry.setID(currentID);
-                //entry.setTime(time);
+                entry.setTime(time);
                 entry.setDistance(distance);
+                realm.copyToRealm(entry);
                 realm.commitTransaction();
+
             }
             else{
                 RealmResults<Entry> results1 = realm.where(Entry.class).findAll();
                 for(Entry I: results1){
-                    
+
                     List<Object> row1 = new ArrayList<>();
                     row1.add(I.getName());
                     row1.add(I.getID());
