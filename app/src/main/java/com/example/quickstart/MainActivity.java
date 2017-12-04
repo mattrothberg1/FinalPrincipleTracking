@@ -96,7 +96,7 @@ public class MainActivity extends Activity
     public String time = "";
     public String currentID = "";
     boolean shouldPush = false;
-    final Realm realm = Realm.getDefaultInstance();
+
     /**
      * Create the main activity.
      * @param savedInstanceState previously saved instance data.
@@ -465,6 +465,7 @@ public class MainActivity extends Activity
      * Placing the API calls in their own task ensures the UI stays responsive.
      */
     private class MakeRequestTask extends AsyncTask<Void, Void, List<String>> {
+
         private com.google.api.services.sheets.v4.Sheets mService = null;
         private Exception mLastError = null;
 
@@ -517,20 +518,22 @@ public class MainActivity extends Activity
         }
 
         private void pushDataToSheet() throws IOException {
+            Realm realm = Realm.getDefaultInstance();
             String spreadsheetId = "18dus_pI1vPrBDAgiIo59TUxQQ13fUaiLSa6paysGCbI";
             String range = "Raw!A:D";
             if(shouldPush == false){
                 realm.beginTransaction();
-                Entry entry = realm.createObject(Entry.class);
+                Entry entry = realm.createObject(Entry.class, time);
                 entry.setName(beaconName);
                 entry.setID(currentID);
-                entry.setTime(time);
+                //entry.setTime(time);
                 entry.setDistance(distance);
                 realm.commitTransaction();
             }
             else{
                 RealmResults<Entry> results1 = realm.where(Entry.class).findAll();
                 for(Entry I: results1){
+                    
                     List<Object> row1 = new ArrayList<>();
                     row1.add(I.getName());
                     row1.add(I.getID());
@@ -546,6 +549,7 @@ public class MainActivity extends Activity
                                     .execute();
                     Log.d("Update_response", result.toString());
                 }
+                realm.close();
             }
 
 
