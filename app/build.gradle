@@ -1,5 +1,5 @@
 apply plugin: 'com.android.application'
-
+apply plugin: 'realm-android'
 android {
     compileSdkVersion 25
     buildToolsVersion '26.0.2'
@@ -34,7 +34,7 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:25.1.0'
     compile 'com.android.support:design:25.1.0'
-
+    compile 'io.realm:android-adapters:2.0.0'
     compile 'com.estimote:sdk:1.4.0'
 
 }

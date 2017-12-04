@@ -1,7 +1,8 @@
 package com.example.quickstart;
 
 import android.app.Application;
-import android.util.Log;
+//import android.util.Log;
+import io.realm.Realm;
 
 import com.estimote.coresdk.common.config.EstimoteSDK;
 
@@ -17,6 +18,7 @@ public class MyApplication extends Application {
         super.onCreate();
 
         EstimoteSDK.initialize(getApplicationContext(), "quickstart-axi", "d04b82ac7e9d087c8d920478f8a13f7a");
+        Realm.init(this);
 
         // uncomment to enable debug-level logging
         // it's usually only a good idea when troubleshooting issues with the Estimote SDK

@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
+import io.realm.RealmResults;
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
 
@@ -59,7 +60,13 @@ import com.example.quickstart.estimote.EstimoteCloudBeaconDetailsFactory;
 import com.example.quickstart.estimote.ProximityContentManager;
 import com.estimote.coresdk.cloud.model.Color;
 import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
-//end of estimote imports
+//end of estimote
+
+//Start of realm imports
+import io.realm.Realm;
+import com.example.quickstart.model.Entry;
+
+
 
 
 
@@ -70,6 +77,7 @@ public class MainActivity extends Activity
     private TextView mOutputText;
     private Button mCallApiButton;
     private Button mCallApiButton2;
+    private Button mCallApiButton3;
     ProgressDialog mProgress;
 
     static final int REQUEST_ACCOUNT_PICKER = 1000;
@@ -84,8 +92,11 @@ public class MainActivity extends Activity
     private ProximityContentManager proximityContentManager;
     private boolean isClicked = false;
     public String beaconName = "";
+    public String distance = "";
+    public String time = "";
     public String currentID = "";
-
+    boolean shouldPush = false;
+    final Realm realm = Realm.getDefaultInstance();
     /**
      * Create the main activity.
      * @param savedInstanceState previously saved instance data.
@@ -114,7 +125,6 @@ public class MainActivity extends Activity
                 mCallApiButton.setEnabled(false);
                 mCallApiButton2.setEnabled(true);
                 isClicked = true;
-                getResultsFromApi();
                 mOutputText.setText("Now Scanning");
                /* if(isClicked == false){
                     isClicked = true;
@@ -144,8 +154,23 @@ public class MainActivity extends Activity
                 //getmCallApiButton2.setEnabled(true);
             }
         });
+        mCallApiButton3 = new Button(this);
+        mCallApiButton3.setText("Push Data");
+        mCallApiButton3.setEnabled(true);
+        mCallApiButton3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mCallApiButton3.setEnabled(false);
+                shouldPush = true;
+                getResultsFromApi();
+                shouldPush = false;
+                mOutputText.setText("Pushed Data to Google Sheets");
+                //getmCallApiButton2.setEnabled(true);
+                mCallApiButton3.setEnabled(true);
+            }
+        });
         activityLayout.addView(mCallApiButton2);
-
+        activityLayout.addView(mCallApiButton3);
         mOutputText = new TextView(this);
         mOutputText.setLayoutParams(tlp);
         mOutputText.setPadding(16, 16, 16, 16);
@@ -181,22 +206,33 @@ public class MainActivity extends Activity
                         EstimoteCloudBeaconDetails beaconDetails = (EstimoteCloudBeaconDetails) content;
                        // BeaconID newBeacon = (BeaconID) content; //I don't think this is correct
                        // currentID = newBeacon.getProximityUUID().toString(); //this is new
-                        currentID = " <<- look! This is the beacon name";
+
                         beaconName = beaconDetails.getBeaconName(); //this is new
+                        Beacon beaconDetails2 = NearestBeaconManager.getDetails();
+                        currentID = beaconDetails2.toString();
+                        double currentDistance = NearestBeaconManager.getDistance();
+                         distance = String.valueOf(currentDistance);
+                        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+                        Date date = new Date();
+                         time = date.toString();
                         //need to get beacon strength here
                        // Log.d("Tag", "You're in " + beaconDetails.getBeaconName() + "'s range!"); //this was already there
-                        if(isClicked){
-                            getResultsFromApi(); //calls post method
+                        if(isClicked) {
+                            getResultsFromApi();
                         }
+
+                           // getResultsFromApi(); //calls post method
                     } else {
                         Log.d("Tag", "No beacons in range.");
-
                     }
                 }
             });
 
 
     }
+
+
+
 
     @Override
     protected void onResume() {
@@ -483,6 +519,39 @@ public class MainActivity extends Activity
         private void pushDataToSheet() throws IOException {
             String spreadsheetId = "18dus_pI1vPrBDAgiIo59TUxQQ13fUaiLSa6paysGCbI";
             String range = "Raw!A:D";
+            if(shouldPush == false){
+                realm.beginTransaction();
+                Entry entry = realm.createObject(Entry.class);
+                entry.setName(beaconName);
+                entry.setID(currentID);
+                entry.setTime(time);
+                entry.setDistance(distance);
+                realm.commitTransaction();
+            }
+            else{
+                RealmResults<Entry> results1 = realm.where(Entry.class).findAll();
+                for(Entry I: results1){
+                    List<Object> row1 = new ArrayList<>();
+                    row1.add(I.getName());
+                    row1.add(I.getID());
+                    row1.add(I.getDistance());
+                    row1.add(I.getTime());
+                    List<List<Object>> values = new ArrayList<>();
+                    values.add(row1);
+                    ValueRange body = new ValueRange()
+                            .setValues(values);
+                    AppendValuesResponse result =
+                            this.mService.spreadsheets().values().append(spreadsheetId, range, body)
+                                    .setValueInputOption("RAW")
+                                    .execute();
+                    Log.d("Update_response", result.toString());
+                }
+            }
+
+
+
+
+            /*
             List<Object> row1 = new ArrayList<>();
             //row1.add(beaconName); //comment this in
             row1.add(beaconName);
@@ -503,7 +572,7 @@ public class MainActivity extends Activity
                     this.mService.spreadsheets().values().append(spreadsheetId, range, body)
                             .setValueInputOption("RAW")
                             .execute();
-            Log.d("Update_response", result.toString());
+            Log.d("Update_response", result.toString());*/
         }
 
         @Override
