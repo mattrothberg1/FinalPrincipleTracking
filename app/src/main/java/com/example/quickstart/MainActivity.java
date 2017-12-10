@@ -64,11 +64,8 @@ import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
 
 //Start of realm imports
 import io.realm.Realm;
+
 import com.example.quickstart.model.Entry;
-
-
-
-
 
 
 public class MainActivity extends Activity
@@ -87,18 +84,15 @@ public class MainActivity extends Activity
 
     private static final String BUTTON_TEXT = "Call Google Sheets API";
     private static final String PREF_ACCOUNT_NAME = "accountName";
-    private static final String[] SCOPES = { SheetsScopes.SPREADSHEETS };
+    private static final String[] SCOPES = {SheetsScopes.SPREADSHEETS};
     private static final String TAG = "MainActivity";
     private ProximityContentManager proximityContentManager;
     private boolean isClicked = false;
-    public String beaconName = "";
-    public String distance = "";
-    public String time = "";
-    public String currentID = "";
     boolean shouldPush = false;
 
     /**
      * Create the main activity.
+     *
      * @param savedInstanceState previously saved instance data.
      */
     @Override
@@ -135,7 +129,7 @@ public class MainActivity extends Activity
                     isClicked = false;
                     mOutputText.setText("Not Scanning");
                 }*/
-               //mCallApiButton.setEnabled(true);
+                //mCallApiButton.setEnabled(true);
             }
         });
         activityLayout.addView(mCallApiButton);
@@ -177,7 +171,7 @@ public class MainActivity extends Activity
         mOutputText.setVerticalScrollBarEnabled(true);
         mOutputText.setMovementMethod(new ScrollingMovementMethod());
         mOutputText.setText(
-                "Click the \'" + BUTTON_TEXT +"\' button to test the API.");
+                "Click the 'TURN ON' button to begin scanning for Beacons");
         activityLayout.addView(mOutputText);
 
         mProgress = new ProgressDialog(this);
@@ -191,47 +185,67 @@ public class MainActivity extends Activity
                 .setBackOff(new ExponentialBackOff());
         //start estimote code
 
-            proximityContentManager = new ProximityContentManager(this,
-                    Arrays.asList(
-                            new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF4012AA803", 51816, 56249),
-                            new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF40E8162BF", 12110, 55284),
-                            new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF4176B9BC5", 39922, 54118)),
-                    new EstimoteCloudBeaconDetailsFactory());
-            proximityContentManager.setListener(new ProximityContentManager.Listener() {
-                @Override
-                public void onContentChanged(Object content) {
-                    String text;
-                    Integer backgroundColor;
-                    if (content != null) { //used to have isClicked but need to test if this is why it's crashing
-                        EstimoteCloudBeaconDetails beaconDetails = (EstimoteCloudBeaconDetails) content;
-                       // BeaconID newBeacon = (BeaconID) content; //I don't think this is correct
-                       // currentID = newBeacon.getProximityUUID().toString(); //this is new
-
+        proximityContentManager = new ProximityContentManager(this,
+                Arrays.asList(
+                        new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF4012AA803", 51816, 56249),
+                        new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF40E8162BF", 12110, 55284),
+                        new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF4012AA803", 51816, 56249),
+                        new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF4695B9E0F", 26689, 31591),
+                        new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF4362AAF5F", 26253, 4416),
+                        new BeaconID("D0D3FA86-CA76-45EC-9BD9-6AF4176B9BC5", 39922, 54118)),
+                new EstimoteCloudBeaconDetailsFactory());
+        proximityContentManager.setListener(new ProximityContentManager.Listener() {
+            @Override
+            public void onContentChanged(Object content) {
+                String text;
+                Integer backgroundColor;
+                if (content != null) { //used to have isClicked but need to test if this is why it's crashing
+                    EstimoteCloudBeaconDetails beaconDetails = (EstimoteCloudBeaconDetails) content;
+                    // BeaconID newBeacon = (BeaconID) content; //I don't think this is correct
+                    // currentID = newBeacon.getProximityUUID().toString(); //this is new
+                    String beaconName = "";
+                    String distance = "";
+                    String time = "";
+                    String currentID = "";
+                    if(isClicked){
+                        mOutputText.setText("Beacon discovered. Added to local database. To click above button to push to server");
                         beaconName = beaconDetails.getBeaconName(); //this is new
                         Beacon beaconDetails2 = NearestBeaconManager.getDetails();
                         currentID = beaconDetails2.toString();
                         double currentDistance = NearestBeaconManager.getDistance();
-                         distance = String.valueOf(currentDistance);
+                        distance = String.valueOf(currentDistance);
                         DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
                         Date date = new Date();
-                         time = date.toString();
+                        time = date.toString();
                         //need to get beacon strength here
-                       // Log.d("Tag", "You're in " + beaconDetails.getBeaconName() + "'s range!"); //this was already there
-                        if(isClicked) {
-                            getResultsFromApi();
-                        }
+                        // Log.d("Tag", "You're in " + beaconDetails.getBeaconName() + "'s range!"); //this was already there
+                        //if(isClicked) {
+                        Realm realm = MyApplication.getRealmInstance();
+                        realm.beginTransaction();
+                        Entry entry = realm.createObject(Entry.class, time);
+                        entry.setName(beaconName);
+                        entry.setID(currentID);
+                        // entry.setTime(time);
+                        entry.setDistance(distance);
+                        realm.copyToRealm(entry);
+                        realm.commitTransaction();
+                        realm.close();
 
-                           // getResultsFromApi(); //calls post method
-                    } else {
-                        Log.d("Tag", "No beacons in range.");
+                        Log.i(TAG, "onContentChanged: Inserted data into realm!");
                     }
+
+                    // }
+
+                    // getResultsFromApi(); //calls post method
+                } else {
+                    mOutputText.setText("Waiting for a beacon to come in range...");
+                    Log.d("Tag", "No beacons in range.");
                 }
-            });
+            }
+        });
 
 
     }
-
-
 
 
     @Override
@@ -269,13 +283,14 @@ public class MainActivity extends Activity
      * appropriate.
      */
     private void getResultsFromApi() {
-        if (! isGooglePlayServicesAvailable()) {
+        if (!isGooglePlayServicesAvailable()) {
             acquireGooglePlayServices();
         } else if (mCredential.getSelectedAccountName() == null) {
             chooseAccount();
-        } else if (! isDeviceOnline()) {
+        } else if (!isDeviceOnline()) {
             mOutputText.setText("No network connection available.");
         } else {
+            Log.i(TAG, "getResultsFromApi: Creating a Sheets Task...");
             new MakeRequestTask(mCredential).execute();
         }
     }
@@ -319,17 +334,18 @@ public class MainActivity extends Activity
      * Called when an activity launched here (specifically, AccountPicker
      * and authorization) exits, giving you the requestCode you started it with,
      * the resultCode it returned, and any additional data from it.
+     *
      * @param requestCode code indicating which activity result is incoming.
-     * @param resultCode code indicating the result of the incoming
-     *     activity result.
-     * @param data Intent (containing result data) returned by incoming
-     *     activity result.
+     * @param resultCode  code indicating the result of the incoming
+     *                    activity result.
+     * @param data        Intent (containing result data) returned by incoming
+     *                    activity result.
      */
     @Override
     protected void onActivityResult(
             int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        switch(requestCode) {
+        switch (requestCode) {
             case REQUEST_GOOGLE_PLAY_SERVICES:
                 if (resultCode != RESULT_OK) {
                     mOutputText.setText(
@@ -366,11 +382,12 @@ public class MainActivity extends Activity
 
     /**
      * Respond to requests for permissions at runtime for API 23 and above.
-     * @param requestCode The request code passed in
-     *     requestPermissions(android.app.Activity, String, int, String[])
-     * @param permissions The requested permissions. Never null.
+     *
+     * @param requestCode  The request code passed in
+     *                     requestPermissions(android.app.Activity, String, int, String[])
+     * @param permissions  The requested permissions. Never null.
      * @param grantResults The grant results for the corresponding permissions
-     *     which is either PERMISSION_GRANTED or PERMISSION_DENIED. Never null.
+     *                     which is either PERMISSION_GRANTED or PERMISSION_DENIED. Never null.
      */
     @Override
     public void onRequestPermissionsResult(int requestCode,
@@ -384,9 +401,10 @@ public class MainActivity extends Activity
     /**
      * Callback for when a permission is granted using the EasyPermissions
      * library.
+     *
      * @param requestCode The request code associated with the requested
-     *         permission
-     * @param list The requested permission list. Never null.
+     *                    permission
+     * @param list        The requested permission list. Never null.
      */
     @Override
     public void onPermissionsGranted(int requestCode, List<String> list) {
@@ -396,9 +414,10 @@ public class MainActivity extends Activity
     /**
      * Callback for when a permission is denied using the EasyPermissions
      * library.
+     *
      * @param requestCode The request code associated with the requested
-     *         permission
-     * @param list The requested permission list. Never null.
+     *                    permission
+     * @param list        The requested permission list. Never null.
      */
     @Override
     public void onPermissionsDenied(int requestCode, List<String> list) {
@@ -407,6 +426,7 @@ public class MainActivity extends Activity
 
     /**
      * Checks whether the device currently has a network connection.
+     *
      * @return true if the device has a network connection, false otherwise.
      */
     private boolean isDeviceOnline() {
@@ -418,8 +438,9 @@ public class MainActivity extends Activity
 
     /**
      * Check that Google Play services APK is installed and up to date.
+     *
      * @return true if Google Play Services is available and up to
-     *     date on this device; false otherwise.
+     * date on this device; false otherwise.
      */
     private boolean isGooglePlayServicesAvailable() {
         GoogleApiAvailability apiAvailability =
@@ -447,8 +468,9 @@ public class MainActivity extends Activity
     /**
      * Display an error dialog showing that Google Play Services is missing
      * or out of date.
+     *
      * @param connectionStatusCode code describing the presence (or lack of)
-     *     Google Play Services on this device.
+     *                             Google Play Services on this device.
      */
     void showGooglePlayServicesAvailabilityErrorDialog(
             final int connectionStatusCode) {
@@ -480,13 +502,15 @@ public class MainActivity extends Activity
 
         /**
          * Background task to call Google Sheets API.
+         *
          * @param params no parameters needed for this task.
          */
         @Override
         protected List<String> doInBackground(Void... params) {
             try {
                 pushDataToSheet();
-                return null;
+                return null; //this should return a list of string
+
             } catch (Exception e) {
                 mLastError = e;
                 cancel(true);
@@ -494,68 +518,42 @@ public class MainActivity extends Activity
             }
         }
 
-        /**
-         * Fetch a list of names and majors of students in a sample spreadsheet:
-         * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
-         * @return List of names and majors
-         * @throws IOException
-         */
-        private List<String> getDataFromApi() throws IOException {
-            String spreadsheetId = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
-            String range = "Class Data!A2:E";
-            List<String> results = new ArrayList<String>();
-            ValueRange response = this.mService.spreadsheets().values()
-                    .get(spreadsheetId, range)
-                    .execute();
-            List<List<Object>> values = response.getValues();
-            if (values != null) {
-                results.add("Name, Major");
-                for (List row : values) {
-                    results.add(row.get(0) + ", " + row.get(4));
-                }
-            }
-            return results;
-        }
+
 
         private void pushDataToSheet() throws IOException {
-            Realm realm = Realm.getDefaultInstance();
+
+            Realm realm = MyApplication.getRealmInstance();
             String spreadsheetId = "18dus_pI1vPrBDAgiIo59TUxQQ13fUaiLSa6paysGCbI";
             String range = "Raw!A:D";
-            if(shouldPush == false){
-                realm.beginTransaction();
-                Entry entry = realm.createObject(Entry.class);
-                entry.setName(beaconName);
-                entry.setID(currentID);
-                entry.setTime(time);
-                entry.setDistance(distance);
-                realm.copyToRealm(entry);
-                realm.commitTransaction();
 
-            }
-            else{
-                RealmResults<Entry> results1 = realm.where(Entry.class).findAll();
-                for(Entry I: results1){
+            Log.i(TAG, "pushDataToSheet: Should push + " + shouldPush);
 
-                    List<Object> row1 = new ArrayList<>();
-                    row1.add(I.getName());
-                    row1.add(I.getID());
-                    row1.add(I.getDistance());
-                    row1.add(I.getTime());
-                    List<List<Object>> values = new ArrayList<>();
-                    values.add(row1);
-                    ValueRange body = new ValueRange()
-                            .setValues(values);
-                    AppendValuesResponse result =
-                            this.mService.spreadsheets().values().append(spreadsheetId, range, body)
-                                    .setValueInputOption("RAW")
-                                    .execute();
-                    Log.d("Update_response", result.toString());
-                }
-                realm.close();
+            RealmResults<Entry> results1 = realm.where(Entry.class).findAll();
+
+            Log.i(TAG, "pushDataToSheet: Found " + results1.size() + " results...");
+
+            for (Entry I : results1) {
+                Log.i(TAG, "pushDataToSheet: " + I.getName());
+                List<Object> row1 = new ArrayList<>();
+                row1.add(I.getName());
+                row1.add(I.getID());
+                row1.add(I.getDistance());
+                row1.add(I.getTime());
+                List<List<Object>> values = new ArrayList<>();
+                values.add(row1);
+                ValueRange body = new ValueRange()
+                        .setValues(values);
+                AppendValuesResponse result =
+                        this.mService.spreadsheets().values().append(spreadsheetId, range, body)
+                                .setValueInputOption("RAW")
+                                .execute();
+                Log.i("Update_response", result.toString());
             }
 
 
-
+            realm.beginTransaction();
+            realm.deleteAll();
+            realm.commitTransaction();
 
             /*
             List<Object> row1 = new ArrayList<>();
@@ -579,6 +577,8 @@ public class MainActivity extends Activity
                             .setValueInputOption("RAW")
                             .execute();
             Log.d("Update_response", result.toString());*/
+            realm.close();
+            mOutputText.setText("Successfully pushed data to Server and deleted all pushed data from local storage");
         }
 
         @Override
@@ -591,7 +591,7 @@ public class MainActivity extends Activity
         protected void onPostExecute(List<String> output) {
             mProgress.hide();
             if (output == null || output.size() == 0) {
-                mOutputText.setText("No results returned.");
+                //mOutputText.setText("No results returned.");
             } else {
                 output.add(0, "Data retrieved using the Google Sheets API:");
                 mOutputText.setText(TextUtils.join("\n", output));
@@ -611,8 +611,9 @@ public class MainActivity extends Activity
                             ((UserRecoverableAuthIOException) mLastError).getIntent(),
                             MainActivity.REQUEST_AUTHORIZATION);
                 } else {
-                    mOutputText.setText("The following error occurred:\n"
-                            + mLastError.getMessage());
+                    /*mOutputText.setText("The following error occurred:\n"
+                            + mLastError.getMessage());*/
+                    mOutputText.setText("Local Storage Empty");
                 }
             } else {
                 mOutputText.setText("Request cancelled.");
